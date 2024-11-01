@@ -99,7 +99,7 @@ def dtdl(r, b, M):                  # d(t)/d(lambda)
     return r/b/(r - 2.*M)
 
 
-def integrateRadialOutwards (r0, rMax, npts, M=1., phi0=0., t0=0.):
+def integrateRadialOutwards (r0, rMax, npts=0, M=1., phi0=0., t0=0.):
     ''' Special case: radially outward till rMax'''
     if DEBUGSW:
         print('radially outward till rMax')
@@ -113,7 +113,7 @@ def integrateRadialOutwards (r0, rMax, npts, M=1., phi0=0., t0=0.):
     return r, phi, t + t0
 
 
-def integrateRadialInwards (r0, rMin, npts, M=1., phi0=0., t0=0.):
+def integrateRadialInwards (r0, rMin, npts=0, M=1., phi0=0., t0=0.):
     ''' Special case: radially inward till max(rMin, 2M+0) '''
     if DEBUGSW:
         print('radially inward till greater of rMin or 2M+0')
@@ -132,7 +132,7 @@ def integrateRadialInwards (r0, rMin, npts, M=1., phi0=0., t0=0.):
 
 
 def integrateFromPeriastron (r, phi, t, r0, rMax, M=1., phi0=0., t0=0., \
-        dl=1e-2, npts=100000):
+        dl=1e-2, npts=0):
     '''
     Special case: r0>3M and delta0=pi/2. In this case r0 is periastron.
     '''
@@ -176,7 +176,7 @@ def integrateFromPeriastron (r, phi, t, r0, rMax, M=1., phi0=0., t0=0., \
 
    
 def integrateFromApastron (r, phi, t, r0, M=1., phi0=0., t0=0., rMin=2., \
-        dl=1e-2, npts=100000):
+        dl=1e-2, npts=0):
     '''
     Special case: r0<3M and delta0=pi/2. In this case r0 is apastron.
     '''
@@ -215,7 +215,7 @@ def integrateFromApastron (r, phi, t, r0, M=1., phi0=0., t0=0., rMin=2., \
 
 
 def integrateNoTP (r, phi, t, r0, sin_delta0, sgn, M=1., phi0=0., t0=0., \
-        rMin=0., rMax=100., dl=1e-2, npts=200000):
+        rMin=0., rMax=100., dl=1e-2, npts=0):
     '''
     Integrate orbits without any turning points, i.e., where the 
     sign of dr/dlambda doesn't change. 
@@ -245,7 +245,7 @@ def integrateNoTP (r, phi, t, r0, sin_delta0, sgn, M=1., phi0=0., t0=0., \
     return 0 
 
 def integrateSchGeodesic (r0, delta0, M=1., phi0=0., t0=0., \
-        rMin=.5 + 1e-6, rMax=100., npts=350000):
+        rMin=.5 + 1e-6, rMax=140., npts=300000):
     '''
     Integrate geodesics in Schwarzschild metric. 
     Some of these have a turning point, i.e., where the sign of dr/dlambda 
@@ -290,7 +290,7 @@ def integrateSchGeodesic (r0, delta0, M=1., phi0=0., t0=0., \
     # Special case: starting at apastron and going in till rMin
     if np.isclose(delta0, np.pi/2) and r0<3*M:
         ret = integrateFromApastron (r, phi, t, r0, M=1., phi0=0., \
-                t0=0., rMin=rMin)
+                t0=0., rMin=rMin, npts=npts)
         return r, phi, t
 
 
@@ -390,40 +390,38 @@ def avoidAngle (r):
 
 
 def fit_polynomial_and_find_intercept(r, phi):
-    """
-    Fit a cubic polynomial to the 2 points above and 2 points below the y-axis
-    (phi = pi/2) and solve for the intercept with the y-axis.
-    """
-    # Find the indices of points closest to phi = pi/2
-    phi_diff = np.abs(phi - (np.pi/2))
+    phinew = phi[np.isfinite(phi)]
+    rnew = r[np.isfinite(r)]
+    
+    if len(phinew) < 4 or len(rnew) < 4:
+        return np.nan  # Safe fallback to avoid `None`
+    
+    phi_diff = np.abs(phinew - (np.pi / 2))
     sorted_indices = np.argsort(phi_diff)
+    sorted_indices = [i for i in sorted_indices if phinew[i] != (np.pi / 2)]
     
-    # Select the closest two points above and below phi = pi/2
+
     selected_indices = sorted_indices[:4]
+    r_selected = rnew[selected_indices]
+    phi_selected = phinew[selected_indices]
     
-    # Extract the corresponding r and phi values
-    r_selected = r[selected_indices]
-    phi_selected = phi[selected_indices]
-    
-    # Convert polar coordinates to Cartesian for fitting
     x_selected = r_selected * np.cos(phi_selected)
     y_selected = r_selected * np.sin(phi_selected)
     
-    # Fit a 3rd-degree polynomial to the selected points (y = f(x))
     coefs = poly.Polynomial.fit(x_selected, y_selected, 3).convert().coef
     
-    # Define the polynomial function
     def poly_func(x):
         return coefs[0] + coefs[1]*x + coefs[2]*x**2 + coefs[3]*x**3
     
-    # Solve for where the polynomial crosses the y-axis (i.e., x = 0)
     y_intercept = poly_func(0)
     
     if y_intercept <= 2:
         print("Ray will go into BH")
-        return 0
+        return 0  # Indicate trajectory falls into black hole
     
     return y_intercept
+
+
 
 
 def Deltax_for_y_desired(r0, inner_edge=5, outer_edge=100, deltaMax=None, deltaMin=None, rMin=.2, rMax=110, tolerance=1e-3, MaxIterations=500):
@@ -544,7 +542,7 @@ def SchwarzschildLampPost (z, nrays):
     for delta0 in delta0s:
         print('delta0 (deg) = %.3f' % np.rad2deg(delta0))
         r, phi, tt = integrateSchGeodesic (z, delta0, \
-                rMin=2, rMax=5*z, npts=100000)
+                rMin=2, rMax=5*z)
         y, x = r * np.cos(phi), r * np.sin(phi)
         ax.plot(+x, y, 'k-', lw=0.5)
         ax.plot(-x, y, 'k-', lw=0.5)
@@ -624,8 +622,8 @@ def SchwarzschildLampPost (z, nrays):
 
 #ret = SchwarzschildLampPost (7, 200)
 
-#r0, delta0 = 3, np.deg2rad(90.25)
-#myr, myphi, myt = integrateSchGeodesic (r0, delta0, rMin=.2, rMax=101)
+#r0, delta0 = 5, np.deg2rad(83.05)
+#myr, myphi, myt = integrateSchGeodesic (r0, delta0, rMin=.2, rMax=120)
 #plotRay(myr, myphi, myt)
 '''
 r0, delta0 = 3, np.deg2rad(72.25268555)
@@ -717,69 +715,59 @@ def find_delta_bounds(r0, rMin=.2, rMax=100):
 
 
 def Find_Time_at_Disk(r0, rMin=.2, rMax=110, angle_inner=None, angle_outer=None):
-    
-    delta0 = 0
-        
-    time_at_disk = []
-    
-    angles = []
-    
+    time_at_disk, angles = [], []
     allrs, allphis, allts = [], [], []
     
-    print(deltaMax, deltaMin)
-    
-    for i in np.linspace(angle_outer, angle_inner, num=50, endpoint=False, retstep=False):
+    for i in np.linspace(angle_outer, angle_inner, num=50, endpoint=False):
         delta0 = np.deg2rad(i)
-        y_axis_intercept=0
-        time_at_intercept=0
         
-        myr, myphi, myt = [], [], []
-        myrs, myphis, myts = [], [], []
-                
-        myr, myphi, myt = integrateSchGeodesic(r0, delta0, rMin=.2, rMax=rMax)
+        myr, myphi, myt = integrateSchGeodesic(r0, delta0, rMin=rMin, rMax=rMax)
         
+        # Intercept values with validation
         y_axis_intercept = fit_polynomial_and_find_intercept(myr, myphi)
+        if y_axis_intercept is None:
+            continue  # Skip if intercept not available
         
         time_at_intercept = fit_polynomial_and_find_intercept(myt, myphi)
+        if time_at_intercept is None:
+            continue  # Skip if intercept not available
+
+        # Collect data points safely
+        time_at_disk.append(time_at_intercept)
+        angles.append(np.rad2deg(delta0))
         
-        time_at_disk = np.append(time_at_disk, time_at_intercept)
-        angles = np.append(angles, np.rad2deg(delta0))
-        
-        
-        myrs = myr[:np.argmax(myphi > np.pi/2)]
-        myphis = myphi[:np.argmax(myphi > np.pi/2)]
-        myts = myt[:np.argmax(myphi > np.pi/2)]            
+        # Sub-arrays for plotting up to the y-axis intercept
+        myrs = myr[:np.argmax(myphi > np.pi / 2)]
+        myphis = myphi[:np.argmax(myphi > np.pi / 2)]
+        myts = myt[:np.argmax(myphi > np.pi / 2)]
         
         myrs = np.append(myrs, y_axis_intercept)
-        myphis = np.append(myphis, (np.pi /2))
+        myphis = np.append(myphis, np.pi / 2)
         myts = np.append(myts, time_at_intercept)
         
         allrs.append(myrs)
         allphis.append(myphis)
         allts.append(myts)
-            
-
+    
+    # Concatenate final arrays for plotting
     allrs = np.concatenate(allrs)
     allphis = np.concatenate(allphis)
     allts = np.concatenate(allts)
     
-    print(time_at_disk)
-    print(angles)
-    print(allrs)
-    
     return time_at_disk, angles, allrs, allphis, allts
+
     
     
 
 
 # Call the function and assign the returned values
-deltaMax, deltaMin = find_delta_bounds(14, rMin=.2, rMax=110)
+deltaMax, deltaMin = find_delta_bounds(5, rMin=.2, rMax=120)
 
 # Call the function to find both angles for the inner and outer edge
-angle_inner, angle_outer = Deltax_for_y_desired(14, inner_edge=5, outer_edge=100, deltaMax=deltaMax, deltaMin=deltaMin)
+angle_inner, angle_outer = Deltax_for_y_desired(5, inner_edge=5, outer_edge=100, deltaMax=deltaMax, deltaMin=deltaMin)
 
 # Using those angles as bounds, launch n rays between those two angles onto the accretion disk and get the times to intercept
-time_at_disk, angles, allrs, allphis, allts = Find_Time_at_Disk(14, rMin=.2, rMax=110, angle_inner=angle_inner, angle_outer=angle_outer)
+time_at_disk, angles, allrs, allphis, allts = Find_Time_at_Disk(5, rMin=.2, rMax=120, angle_inner=angle_inner, angle_outer=angle_outer)
 
 plotRay(allrs, allphis, allts)
 
