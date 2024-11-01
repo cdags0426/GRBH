@@ -2,7 +2,7 @@
 
 '''
 Computes null geodesics. i.e. photon paths, in Schwarzschild spacetime.
-The code then creates some basic visualizations of the computed null 
+The code then creates some basic visualizations of the computed null
 geodesics.
 
 The code follows the conventions/prescriptions in the following two books:
@@ -11,17 +11,17 @@ The code follows the conventions/prescriptions in the following two books:
 
 To use the code the user has to specify the following inputs:
 r0 = distance between the center of the black hole and the starting point of
-     the light ray. This distance is given in units of gravitational radius 
-     (GM/c^2) so that, for example, r0=6 means the starting location is 
+     the light ray. This distance is given in units of gravitational radius
+     (GM/c^2) so that, for example, r0=6 means the starting location is
      6GM/c^2 = 3 Schwarzschild radius away.
 
 delta0 = angle that the light ray's path makes, with respect to the radially
          outward direction, at the starting location r0. delta0 has to be in
          radians. For example, r0=6 and delta0=0 means a light ray starting at
-         6GM/c^2 and going directly away from the black hole. Similarly r0=6 
-         and delta0 = pi means a light ray starting at 6GM/c^2 but going 
+         6GM/c^2 and going directly away from the black hole. Similarly r0=6
+         and delta0 = pi means a light ray starting at 6GM/c^2 but going
          directly towards the black hole. If r0=6 and delta0=pi/2 then light
-         ray at 6GM/c^2 is moving perpendicular to the radia direction. If 
+         ray at 6GM/c^2 is moving perpendicular to the radia direction. If
          (r0, delta0) = (6, pi/4) then the ray at 6GM/c^2 is making an angle of
          45-degrees with respect to the radially outward direction.
 
@@ -35,7 +35,7 @@ rMax = stop code if the distance between the ray and the center of the black
        hole becomes larger than rMax. This distance is in units of
        gravitational radius (GM/c^2). The default value of rMax is 10.
 
-npts = number of integration steps. Default is 10,000. If this is too small 
+npts = number of integration steps. Default is 10,000. If this is too small
        then the code will stop before reaching rMin or rMax.
 
 
@@ -49,7 +49,7 @@ Pre-requisites (beyond basic python):
     * numpy, matplotlib
     * Also needs the file cubic_realroots.py in the same location as this code.
 
-To run code: 
+To run code:
     python sch_null.py
 
 See detailed usage at the bottom of the code.
@@ -139,7 +139,7 @@ def integrateFromPeriastron (r, phi, t, r0, rMax, M=1., phi0=0., t0=0., \
     if DEBUGSW:
         print('starting at periastron')
 
-    # do the first step manually, using a small increase in r to 
+    # do the first step manually, using a small increase in r to
     # compute resulting dl, dphi, and dt.
     dr = 1e-6*r[0]
     r[1] = r[0] + dr
@@ -172,7 +172,7 @@ def integrateFromPeriastron (r, phi, t, r0, rMax, M=1., phi0=0., t0=0., \
     if r[-1] < rMax:
         print('ran out of points before getting to rMax.')
 
-    return 0 
+    return 0
 
    
 def integrateFromApastron (r, phi, t, r0, M=1., phi0=0., t0=0., rMin=2., \
@@ -183,7 +183,7 @@ def integrateFromApastron (r, phi, t, r0, M=1., phi0=0., t0=0., rMin=2., \
     if DEBUGSW:
         print('starting at apastron')
 
-    # go to the second  hand, using a small decrease in r to 
+    # go to the second  hand, using a small decrease in r to
     # compute resulting dl, dphi, and dt.
     dr = 1e-6*r[0]
     r[1] = r[0] - dr
@@ -211,14 +211,14 @@ def integrateFromApastron (r, phi, t, r0, M=1., phi0=0., t0=0., rMin=2., \
             break
         r[i+1], phi[i+1], t[i+1] = rNew, phiNew, tNew
 
-    return 0 
+    return 0
 
 
 def integrateNoTP (r, phi, t, r0, sin_delta0, sgn, M=1., phi0=0., t0=0., \
         rMin=0., rMax=100., dl=1e-2, npts=0):
     '''
-    Integrate orbits without any turning points, i.e., where the 
-    sign of dr/dlambda doesn't change. 
+    Integrate orbits without any turning points, i.e., where the
+    sign of dr/dlambda doesn't change.
     '''
     if DEBUGSW:
         print('using integrateNoTP function')
@@ -237,22 +237,23 @@ def integrateNoTP (r, phi, t, r0, sin_delta0, sgn, M=1., phi0=0., t0=0., \
         r[i+1], phi[i+1], t[i+1] = rNew, phiNew, tNew
         if ((phiNew == (np.pi / 2)) and (5 <= rNew <= 100)):
             return rNew, phiNew, tNew
-            
+           
 
     if r[-1] < rMax:
         print('ran out of points before getting to rMax.')
 
-    return 0 
+    return 0
 
 def integrateSchGeodesic (r0, delta0, M=1., phi0=0., t0=0., \
-        rMin=.5 + 1e-6, rMax=140., npts=300000):
+        rMin=.5 + 1e-6, rMax=140., npts=None):
     '''
-    Integrate geodesics in Schwarzschild metric. 
-    Some of these have a turning point, i.e., where the sign of dr/dlambda 
-    changes at peri/apastron. The peri/apastron points are given by the 
+    Integrate geodesics in Schwarzschild metric.
+    Some of these have a turning point, i.e., where the sign of dr/dlambda
+    changes at peri/apastron. The peri/apastron points are given by the
     positive real roots of R^3 - b^2 R + 2 M b^2 = 0
     '''
-
+    if npts is None:
+        npts = int(70000 + 10000*(r0-3))
     # handle some special cases first
 
     # Special case: radially outward till rMax
@@ -260,7 +261,7 @@ def integrateSchGeodesic (r0, delta0, M=1., phi0=0., t0=0., \
         r, phi, t = integrateRadialOutwards (r0, rMax, npts, M, phi0, t0)
         return r, phi, t
 
-    # Special case: radially inward till max(rMin, 2M+0) 
+    # Special case: radially inward till max(rMin, 2M+0)
     if np.isclose(delta0, np.pi):
         r, phi, t = integrateRadialInwards  (r0, rMin, npts, M, phi0, t0)
         return r, phi, t
@@ -375,7 +376,7 @@ def integrateSchGeodesic (r0, delta0, M=1., phi0=0., t0=0., \
     else:
         print('this should never happen!')
 
-    return r, phi, t 
+    return r, phi, t
 
 
 
@@ -392,33 +393,33 @@ def avoidAngle (r):
 def fit_polynomial_and_find_intercept(r, phi):
     phinew = phi[np.isfinite(phi)]
     rnew = r[np.isfinite(r)]
-    
+   
     if len(phinew) < 4 or len(rnew) < 4:
         return np.nan  # Safe fallback to avoid `None`
-    
+   
     phi_diff = np.abs(phinew - (np.pi / 2))
     sorted_indices = np.argsort(phi_diff)
     sorted_indices = [i for i in sorted_indices if phinew[i] != (np.pi / 2)]
-    
+   
 
     selected_indices = sorted_indices[:4]
     r_selected = rnew[selected_indices]
     phi_selected = phinew[selected_indices]
-    
+   
     x_selected = r_selected * np.cos(phi_selected)
     y_selected = r_selected * np.sin(phi_selected)
-    
+   
     coefs = poly.Polynomial.fit(x_selected, y_selected, 3).convert().coef
-    
+   
     def poly_func(x):
         return coefs[0] + coefs[1]*x + coefs[2]*x**2 + coefs[3]*x**3
-    
+   
     y_intercept = poly_func(0)
-    
+   
     if y_intercept <= 2:
         print("Ray will go into BH")
         return 0  # Indicate trajectory falls into black hole
-    
+   
     return y_intercept
 
 
@@ -430,48 +431,45 @@ def Deltax_for_y_desired(r0, inner_edge=5, outer_edge=100, deltaMax=None, deltaM
         for i in range(MaxIterations):
             # Try the midpoint angle in radians
             deltax = (deltaMin + deltaMax) / 2
-                
+               
             # Compute the photon trajectory
             myr, myphi, myt = integrateSchGeodesic(r0, deltax, rMin=rMin, rMax=rMax)
-                
+               
             # Find the y-axis intercept for this trajectory
             y_axis_intercept = fit_polynomial_and_find_intercept(myr, myphi)
             time_at_axis = fit_polynomial_and_find_intercept(myt, myphi)
-                
-            # Print the current iteration and delta if checks are needed
-            #print(f"Iteration {i+1}: deltax = {np.rad2deg(deltax)} degrees, y_intercept = {y_axis_intercept}")
-                
+                               
             # Check if this intercept is close enough to the target
             if np.abs(y_axis_intercept - y_desired) < tolerance:
                 print(f"Converged after {i+1} iterations.")
                 #plotRay(myr, myphi, myt)
                 print(f"Hits the disk at time = {time_at_axis}")
                 return np.rad2deg(deltax)  # Return the angle in degrees
-                
+               
             # Adjust the range for the next iteration
             if y_axis_intercept > y_desired:
                 deltaMin = deltax  # Try larger angles
             elif y_axis_intercept < y_desired:
                 deltaMax = deltax  # Try smaller angles
-            
+           
         print(f"Failed to converge to the desired y-axis intercept for {y_desired} within tolerance.")
         return None
-        
+       
     # Find angle for the inner edge
     print(f"Finding angle for inner edge at y = {inner_edge}")
     angle_inner = find_required_angle(inner_edge, deltaMin, deltaMax)
 
-        
+       
     # Find angle for the outer edge
     print(f"Finding angle for outer edge at y = {outer_edge}")
     angle_outer = find_required_angle(outer_edge, deltaMin, deltaMax)
-    
+   
     print(f"Angle for inner edge (y = 5): {angle_inner} degrees")
     print(f"Angle for outer edge (y = 100): {angle_outer} degrees")
-    
-        
+   
+       
     return angle_inner, angle_outer
-    
+   
 
 
 def plotRay(r, phi, t):
@@ -517,7 +515,7 @@ def plotRay(r, phi, t):
 
 
 
-def SchwarzschildLampPost (z, nrays):   
+def SchwarzschildLampPost (z, nrays):  
     # nrays from a lamppost at height z above BH
     delta0s_deg = np.linspace(0, 180, nrays)
     delta0s = np.deg2rad(delta0s_deg)
@@ -542,7 +540,7 @@ def SchwarzschildLampPost (z, nrays):
     for delta0 in delta0s:
         print('delta0 (deg) = %.3f' % np.rad2deg(delta0))
         r, phi, tt = integrateSchGeodesic (z, delta0, \
-                rMin=2, rMax=5*z)
+                rMin=2, rMax=5*z, npts=npts)
         y, x = r * np.cos(phi), r * np.sin(phi)
         ax.plot(+x, y, 'k-', lw=0.5)
         ax.plot(-x, y, 'k-', lw=0.5)
@@ -561,7 +559,7 @@ def SchwarzschildLampPost (z, nrays):
 #
 
 # radially outward ray
-#r0, delta0, rmax = 2.5, 0, 12           
+#r0, delta0, rmax = 2.5, 0, 12          
 #myr, myphi, myt = integrateSchGeodesic (r0, delta0, rMax=rmax)
 
 
@@ -587,15 +585,15 @@ def SchwarzschildLampPost (z, nrays):
 #myr, myphi, myt = integrateSchGeodesic (r0, delta0, rMin=2, rMax=12, npts=nPts)
 
 
-# ray approaching bcrit from inside 3M 
+# ray approaching bcrit from inside 3M
 #r0     = 2.5
-#delta0 = np.arcsin(np.sqrt(27-54/r0)/r0) 
+#delta0 = np.arcsin(np.sqrt(27-54/r0)/r0)
 #delta0 = np.arcsin(np.sqrt(27-54/r0)/r0) + 0.01 # reaches apastron, then fall onto BH
 #delta0 = np.arcsin(np.sqrt(27-54/r0)/r0) - 0.01 # manages to escape to infinity
 #myr, myphi, myt = integrateSchGeodesic (r0, delta0, rMin=2)
 
 
-# ray approaching bcrit from outside 3M 
+# ray approaching bcrit from outside 3M
 #r0, delta0 = 6, np.deg2rad(180-45)
 #r0, delta0 = 6, np.deg2rad(180-45.1)
 #r0, delta0 = 6, np.deg2rad(180-44.9)
@@ -634,7 +632,7 @@ plotRay(myr, myphi, myt)
 
 
 time_intercept = fit_polynomial_and_find_intercept(myt, myphi)
-    
+   
 print(f"The photon's trajectory intercepts the y-axis at t = {time_intercept}")
 
 
@@ -646,7 +644,7 @@ plotRay(myr, myphi, myt)
 
 
 time_intercept = fit_polynomial_and_find_intercept(myt, myphi)
-    
+   
 print(f"The photon's trajectory intercepts the y-axis at t = {time_intercept}")
 '''
 
@@ -662,39 +660,34 @@ print(f"The photon's trajectory intercepts the y-axis at t = {time_intercept}")
 def find_delta_bounds(r0, rMin=.2, rMax=100):
     deltaMin = 0
     deltaMax = 0
-    
-    
+   
+   
     for i in np.arange(180, 45, -1):
         delta0max = np.deg2rad(i)
-        
+       
         myr, myphi, myt = [], [], []
-        
+       
         myr, myphi, myt = integrateSchGeodesic(r0, delta0max, rMin=.2, rMax=rMax)
-        
-        
-        #print(delta0max)
-        #print(np.nanmin(myr))
+       
+       
         if (np.nanmin(myr) <= (2 + .001 or 2 - .001)):
-            #print("Ray goes into BH")
             continue
-            
-            
+           
+           
         elif (np.nanmin(myr) > 2):
             deltaMax = delta0max
-            #plotRay(myr, myphi, myt)
-
             break
-            
-            
-    for i in np.arange(np.rad2deg(deltaMax), 1, -1):
+           
+           
+    for i in np.arange(np.rad2deg(deltaMax), 1, -.5):
         delta0min = np.deg2rad(i)
-        
+       
         myr, myphi, myt = [], [], []
-                
+               
         y_axis_intercept = 0
-        
+       
         myr, myphi, myt = integrateSchGeodesic(r0, delta0min, rMin=.2, rMax=rMax)
-        
+       
         y_axis_intercept = fit_polynomial_and_find_intercept(myr, myphi)
 
 
@@ -702,32 +695,30 @@ def find_delta_bounds(r0, rMin=.2, rMax=100):
             continue
 
         elif (((y_axis_intercept > 100))):
-            deltaMin = delta0min
-            #plotRay(myr, myphi, myt)
-           
+            deltaMin = delta0min          
             break
-    
+   
     print(f"DeltaMax: {np.rad2deg(deltaMax)} degrees")
-    print(f"DeltaMin: {np.rad2deg(deltaMin)} degrees") 
-    
-    
+    print(f"DeltaMin: {np.rad2deg(deltaMin)} degrees")
+   
+   
     return deltaMax, deltaMin
 
 
 def Find_Time_at_Disk(r0, rMin=.2, rMax=110, angle_inner=None, angle_outer=None):
     time_at_disk, angles, y_ints = [], [], []
     allrs, allphis, allts = [], [], []
-    
-    for i in np.linspace(angle_outer, angle_inner, num=50, endpoint=False):
+   
+    for i in np.linspace(angle_outer, angle_inner, num=100, endpoint=False):
         delta0 = np.deg2rad(i)
-        
+       
         myr, myphi, myt = integrateSchGeodesic(r0, delta0, rMin=rMin, rMax=rMax)
-        
+       
         # Intercept values with validation
         y_axis_intercept = fit_polynomial_and_find_intercept(myr, myphi)
         if y_axis_intercept is None:
             continue  # Skip if intercept not available
-        
+       
         time_at_intercept = fit_polynomial_and_find_intercept(myt, myphi)
         if time_at_intercept is None:
             continue  # Skip if intercept not available
@@ -736,29 +727,29 @@ def Find_Time_at_Disk(r0, rMin=.2, rMax=110, angle_inner=None, angle_outer=None)
         time_at_disk.append(time_at_intercept)
         angles.append(np.rad2deg(delta0))
         y_ints.append(y_axis_intercept)
-        
+       
         # Sub-arrays for plotting up to the y-axis intercept
         myrs = myr[:np.argmax(myphi > np.pi / 2)]
         myphis = myphi[:np.argmax(myphi > np.pi / 2)]
         myts = myt[:np.argmax(myphi > np.pi / 2)]
-        
+       
         myrs = np.append(myrs, y_axis_intercept)
         myphis = np.append(myphis, np.pi / 2)
         myts = np.append(myts, time_at_intercept)
-        
+       
         allrs.append(myrs)
         allphis.append(myphis)
         allts.append(myts)
-    
+   
     # Concatenate final arrays for plotting
     allrs = np.concatenate(allrs)
     allphis = np.concatenate(allphis)
     allts = np.concatenate(allts)
-    
+   
     return time_at_disk, angles, y_ints, allrs, allphis, allts
 
-    
-    
+   
+   
 
 '''
 # Call the function and assign the returned values
@@ -775,7 +766,6 @@ plotRay(allrs, allphis, allts)
 
 
 
-
 def t_versus_disk_impact(r0min=3, r0max=20, rMin=.2, rMax=120):
 
     plt.figure(figsize=(10, 6))
@@ -783,55 +773,31 @@ def t_versus_disk_impact(r0min=3, r0max=20, rMin=.2, rMax=120):
     plt.xlabel("Disk Impact (y-axis intercept)")
     plt.ylabel("Time (t)")    
 
-    for i in np.arange(r0min, r0max, 1):
-        
+    for i in np.arange(r0min, r0max+1, 1):
+       
         # Call the function and assign the returned values
         deltaMax, deltaMin = find_delta_bounds(i, rMin=.2, rMax=120)
-        
+       
         # Call the function to find both angles for the inner and outer edge
         angle_inner, angle_outer = Deltax_for_y_desired(i, inner_edge=5, outer_edge=100, deltaMax=deltaMax, deltaMin=deltaMin)
-        
+       
         # Using those angles as bounds, launch n rays between those two angles onto the accretion disk and get the times to intercept
         time_at_disk, angles, y_ints, allrs, allphis, allts = Find_Time_at_Disk(i, rMin=.2, rMax=120, angle_inner=angle_inner, angle_outer=angle_outer)
-        
+       
         # Plot each r0 with a distinct style
         plt.plot(y_ints, time_at_disk, label=f"r0 = {i}", marker='o', linestyle='-')
-        
-        
+       
+       
     # Add legend and show plot
     plt.legend(title="r0 Values")
     plt.grid(True)
     plt.show()
-    
+   
     return 0
 
-t_versus_disk_impact()
+t_versus_disk_impact(r0min=4, r0max=5)
 
 
-
-
-
-   
 '''
-Need to plot each one of the rays in the tables, stopping once they hit the disk
-
 Could test out making a heatmap at the smaller values?
-
-Use np.linspace to get fixed number of points 
 '''
-   
-    
-'''
-
-- Once r0 gets larger than 8, the graph doesn't go long enough to cross y-axis, regardless of whether I make npts = 100000, 200000, etc.
-
-- Code won't be able to find deltaMin when r0 = 2.5, but it can find deltaMax.
-
-- Need to know angle he wants me to increment by to plot all possible angles between inner edge delta and outer edge delta.
-rather than have the increment be linear, try to do more closer to deltamax than deltamin
-
-- The problem originally was nan values.
-
-'''
-
-
