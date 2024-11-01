@@ -444,7 +444,7 @@ def Deltax_for_y_desired(r0, inner_edge=5, outer_edge=100, deltaMax=None, deltaM
             # Check if this intercept is close enough to the target
             if np.abs(y_axis_intercept - y_desired) < tolerance:
                 print(f"Converged after {i+1} iterations.")
-                plotRay(myr, myphi, myt)
+                #plotRay(myr, myphi, myt)
                 print(f"Hits the disk at time = {time_at_axis}")
                 return np.rad2deg(deltax)  # Return the angle in degrees
                 
@@ -681,7 +681,7 @@ def find_delta_bounds(r0, rMin=.2, rMax=100):
             
         elif (np.nanmin(myr) > 2):
             deltaMax = delta0max
-            plotRay(myr, myphi, myt)
+            #plotRay(myr, myphi, myt)
 
             break
             
@@ -703,7 +703,7 @@ def find_delta_bounds(r0, rMin=.2, rMax=100):
 
         elif (((y_axis_intercept > 100))):
             deltaMin = delta0min
-            plotRay(myr, myphi, myt)
+            #plotRay(myr, myphi, myt)
            
             break
     
@@ -715,7 +715,7 @@ def find_delta_bounds(r0, rMin=.2, rMax=100):
 
 
 def Find_Time_at_Disk(r0, rMin=.2, rMax=110, angle_inner=None, angle_outer=None):
-    time_at_disk, angles = [], []
+    time_at_disk, angles, y_ints = [], [], []
     allrs, allphis, allts = [], [], []
     
     for i in np.linspace(angle_outer, angle_inner, num=50, endpoint=False):
@@ -735,6 +735,7 @@ def Find_Time_at_Disk(r0, rMin=.2, rMax=110, angle_inner=None, angle_outer=None)
         # Collect data points safely
         time_at_disk.append(time_at_intercept)
         angles.append(np.rad2deg(delta0))
+        y_ints.append(y_axis_intercept)
         
         # Sub-arrays for plotting up to the y-axis intercept
         myrs = myr[:np.argmax(myphi > np.pi / 2)]
@@ -754,12 +755,12 @@ def Find_Time_at_Disk(r0, rMin=.2, rMax=110, angle_inner=None, angle_outer=None)
     allphis = np.concatenate(allphis)
     allts = np.concatenate(allts)
     
-    return time_at_disk, angles, allrs, allphis, allts
+    return time_at_disk, angles, y_ints, allrs, allphis, allts
 
     
     
 
-
+'''
 # Call the function and assign the returned values
 deltaMax, deltaMin = find_delta_bounds(5, rMin=.2, rMax=120)
 
@@ -767,16 +768,44 @@ deltaMax, deltaMin = find_delta_bounds(5, rMin=.2, rMax=120)
 angle_inner, angle_outer = Deltax_for_y_desired(5, inner_edge=5, outer_edge=100, deltaMax=deltaMax, deltaMin=deltaMin)
 
 # Using those angles as bounds, launch n rays between those two angles onto the accretion disk and get the times to intercept
-time_at_disk, angles, allrs, allphis, allts = Find_Time_at_Disk(5, rMin=.2, rMax=120, angle_inner=angle_inner, angle_outer=angle_outer)
+time_at_disk, angles, y_ints, allrs, allphis, allts = Find_Time_at_Disk(5, rMin=.2, rMax=120, angle_inner=angle_inner, angle_outer=angle_outer)
 
 plotRay(allrs, allphis, allts)
+'''
 
 
-#def t_versus_disk_impact(r0min=3, r0max=20,):
+
+
+def t_versus_disk_impact(r0min=3, r0max=20, rMin=.2, rMax=120):
+
+    plt.figure(figsize=(10, 6))
+    plt.title("Time (t) vs Disk Impact for Different r0 Values")
+    plt.xlabel("Disk Impact (y-axis intercept)")
+    plt.ylabel("Time (t)")    
+
+    for i in np.arange(r0min, r0max, 1):
+        
+        # Call the function and assign the returned values
+        deltaMax, deltaMin = find_delta_bounds(i, rMin=.2, rMax=120)
+        
+        # Call the function to find both angles for the inner and outer edge
+        angle_inner, angle_outer = Deltax_for_y_desired(i, inner_edge=5, outer_edge=100, deltaMax=deltaMax, deltaMin=deltaMin)
+        
+        # Using those angles as bounds, launch n rays between those two angles onto the accretion disk and get the times to intercept
+        time_at_disk, angles, y_ints, allrs, allphis, allts = Find_Time_at_Disk(i, rMin=.2, rMax=120, angle_inner=angle_inner, angle_outer=angle_outer)
+        
+        # Plot each r0 with a distinct style
+        plt.plot(y_ints, time_at_disk, label=f"r0 = {i}", marker='o', linestyle='-')
+        
+        
+    # Add legend and show plot
+    plt.legend(title="r0 Values")
+    plt.grid(True)
+    plt.show()
     
+    return 0
 
-
-
+t_versus_disk_impact()
 
 
 
