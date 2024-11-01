@@ -166,7 +166,7 @@ def integrateFromPeriastron (r, phi, t, r0, rMax, M=1., phi0=0., t0=0., \
         if rNew > rMax:
             break
         r[i+1], phi[i+1], t[i+1] = rNew, phiNew, tNew
-        if ((phiNew == (np.pi / 2)) and (3 <= rNew <= 20)):
+        if ((phiNew == (np.pi / 2)) and (5 <= rNew <= 100)):
             return rNew, phiNew, tNew
 
     if r[-1] < rMax:
@@ -235,7 +235,7 @@ def integrateNoTP (r, phi, t, r0, sin_delta0, sgn, M=1., phi0=0., t0=0., \
         if rNew < rMin or rNew > rMax:
             break
         r[i+1], phi[i+1], t[i+1] = rNew, phiNew, tNew
-        if ((phiNew == (np.pi / 2)) and (3 <= rNew <= 20)):
+        if ((phiNew == (np.pi / 2)) and (5 <= rNew <= 100)):
             return rNew, phiNew, tNew
             
 
