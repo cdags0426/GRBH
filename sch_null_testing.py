@@ -63,6 +63,10 @@ from matplotlib.gridspec import GridSpec
 from cubic_realroots import depressedCubicDistinctRealRoots as cr
 from scipy.optimize import fsolve
 import numpy.polynomial.polynomial as poly
+from scipy.interpolate import griddata
+from scipy.interpolate import interp1d
+import seaborn as sns
+import pandas as pd
 
 
 DEBUGSW = False #True
@@ -620,7 +624,7 @@ def SchwarzschildLampPost (z, nrays):
 
 #ret = SchwarzschildLampPost (7, 200)
 
-#r0, delta0 = 5, np.deg2rad(83.05)
+#r0, delta0 = 5, np.deg2rad(90.0204405784607)
 #myr, myphi, myt = integrateSchGeodesic (r0, delta0, rMin=.2, rMax=120)
 #plotRay(myr, myphi, myt)
 '''
@@ -705,25 +709,29 @@ def find_delta_bounds(r0, rMin=.2, rMax=100):
     return deltaMax, deltaMin
 
 
+
 def Find_Time_at_Disk(r0, rMin=.2, rMax=110, angle_inner=None, angle_outer=None):
     time_at_disk, angles, y_ints = [], [], []
     allrs, allphis, allts = [], [], []
    
-    for i in np.linspace(angle_outer, angle_inner, num=100, endpoint=False):
+    for i in np.linspace(angle_outer, angle_inner, num=500, endpoint=False):
         delta0 = np.deg2rad(i)
        
         myr, myphi, myt = integrateSchGeodesic(r0, delta0, rMin=rMin, rMax=rMax)
        
         # Intercept values with validation
         y_axis_intercept = fit_polynomial_and_find_intercept(myr, myphi)
-        if y_axis_intercept is None:
-            continue  # Skip if intercept not available
-       
         time_at_intercept = fit_polynomial_and_find_intercept(myt, myphi)
-        if time_at_intercept is None:
-            continue  # Skip if intercept not available
 
-        # Collect data points safely
+        # If either intercept is missing, add NaN as a placeholder
+        if y_axis_intercept is None or time_at_intercept is None:
+            y_axis_intercept, time_at_intercept = np.nan, np.nan
+
+        print(y_axis_intercept)
+        print(time_at_intercept)
+        print(np.rad2deg(delta0))
+        
+        # Collect data points
         time_at_disk.append(time_at_intercept)
         angles.append(np.rad2deg(delta0))
         y_ints.append(y_axis_intercept)
@@ -741,15 +749,30 @@ def Find_Time_at_Disk(r0, rMin=.2, rMax=110, angle_inner=None, angle_outer=None)
         allphis.append(myphis)
         allts.append(myts)
    
+    # Convert lists to arrays
+    time_at_disk = np.array(time_at_disk)
+    y_ints = np.array(y_ints)
+    angles = np.array(angles)
+
+    # Handle NaN values by interpolation
+    valid_indices = ~np.isnan(y_ints) & ~np.isnan(time_at_disk)
+    if valid_indices.sum() > 1:  # Ensure there are at least two valid points
+        y_interp = interp1d(angles[valid_indices], y_ints[valid_indices], kind='linear', fill_value="extrapolate")
+        time_interp = interp1d(angles[valid_indices], time_at_disk[valid_indices], kind='linear', fill_value="extrapolate")
+
+        # Fill in the NaN values with interpolated values
+        nan_indices = np.isnan(y_ints) | np.isnan(time_at_disk)
+        y_ints[nan_indices] = y_interp(angles[nan_indices])
+        time_at_disk[nan_indices] = time_interp(angles[nan_indices])
+   
     # Concatenate final arrays for plotting
     allrs = np.concatenate(allrs)
     allphis = np.concatenate(allphis)
     allts = np.concatenate(allts)
    
     return time_at_disk, angles, y_ints, allrs, allphis, allts
+   
 
-   
-   
 
 '''
 # Call the function and assign the returned values
@@ -761,20 +784,25 @@ angle_inner, angle_outer = Deltax_for_y_desired(5, inner_edge=5, outer_edge=100,
 # Using those angles as bounds, launch n rays between those two angles onto the accretion disk and get the times to intercept
 time_at_disk, angles, y_ints, allrs, allphis, allts = Find_Time_at_Disk(5, rMin=.2, rMax=120, angle_inner=angle_inner, angle_outer=angle_outer)
 
+time_at_disk, angles, y_ints, allrs, allphis, allts = Find_Time_at_Disk(5, rMin=.2, rMax=120, angle_inner=angle_inner, angle_outer=angle_outer)
+
 plotRay(allrs, allphis, allts)
 '''
 
+#Error delta0 is 90.0204405784607
 
 
 def t_versus_disk_impact(r0min=3, r0max=20, rMin=.2, rMax=120):
-
-    plt.figure(figsize=(10, 6))
+    
+    full_ts, full_ints, full_rs = [], [], []
+    
+    plt.figure(figsize=(10, 8))
     plt.title("Time (t) vs Disk Impact for Different r0 Values")
     plt.xlabel("Disk Impact (y-axis intercept)")
     plt.ylabel("Time (t)")    
 
     for i in np.arange(r0min, r0max+1, 1):
-       
+        r0 = i
         # Call the function and assign the returned values
         deltaMax, deltaMin = find_delta_bounds(i, rMin=.2, rMax=120)
        
@@ -783,21 +811,62 @@ def t_versus_disk_impact(r0min=3, r0max=20, rMin=.2, rMax=120):
        
         # Using those angles as bounds, launch n rays between those two angles onto the accretion disk and get the times to intercept
         time_at_disk, angles, y_ints, allrs, allphis, allts = Find_Time_at_Disk(i, rMin=.2, rMax=120, angle_inner=angle_inner, angle_outer=angle_outer)
-       
-        # Plot each r0 with a distinct style
-        plt.plot(y_ints, time_at_disk, label=f"r0 = {i}", marker='o', linestyle='-')
-       
-       
+    
+        # Plot each r0
+        plt.plot(y_ints, time_at_disk, label=f"r0 = {i}", marker='.', linestyle='-')    
+    
     # Add legend and show plot
     plt.legend(title="r0 Values")
     plt.grid(True)
     plt.show()
-   
-    return 0
+    
+     
+    return time_at_disk, angles, y_ints, full_ts, full_ints
 
-t_versus_disk_impact(r0min=4, r0max=5)
+#time_at_disk, angles, y_ints, full_ts, full_ints = t_versus_disk_impact(r0min=3, r0max=5)
 
 
-'''
-Could test out making a heatmap at the smaller values?
-'''
+
+def t_versus_disk_impact(r0min=3, r0max=20, rMin=.2, rMax=120):
+    full_ts, full_ints, full_rs = [], [], []
+
+    for i in np.arange(r0min, r0max+1, 1):
+        r0 = i
+        # Call the function and assign the returned values
+        deltaMax, deltaMin = find_delta_bounds(i, rMin=rMin, rMax=rMax)
+       
+        # Call the function to find both angles for the inner and outer edge
+        angle_inner, angle_outer = Deltax_for_y_desired(i, inner_edge=5, outer_edge=100, deltaMax=deltaMax, deltaMin=deltaMin)
+       
+        # Using those angles as bounds, launch n rays between those two angles onto the accretion disk and get the times to intercept
+        time_at_disk, angles, y_ints, allrs, allphis, allts = Find_Time_at_Disk(i, rMin=rMin, rMax=rMax, angle_inner=angle_inner, angle_outer=angle_outer)
+    
+        # Append data to full arrays for heatmap creation
+        full_ts.extend(time_at_disk)
+        full_ints.extend(y_ints)
+        full_rs.extend([r0] * len(time_at_disk))  # Repeat r0 for each time_at_disk entry
+
+    return np.array(full_ts), np.array(full_ints), np.array(full_rs)
+
+# Get the full data from function call
+time_at_disk, y_ints, r0_values = t_versus_disk_impact(r0min=3, r0max=14)
+
+# Create a DataFrame to handle the data for the heatmap
+data = pd.DataFrame({'r0': r0_values, 'y_ints': y_ints, 'time_at_disk': time_at_disk})
+# Round y_ints to create fewer bins if necessary
+data['y_ints'] = data['y_ints'].round(1)
+# Pivot the data to make it suitable for heatmap plotting
+pivot_table = data.pivot_table(index='r0', columns='y_ints', values='time_at_disk', aggfunc='mean')
+
+# Interpolate missing values in the pivot table
+pivot_table_interpolated = pivot_table.interpolate(method='linear', axis=1).interpolate(method='linear', axis=0)
+
+# Plot heatmap
+plt.figure(figsize=(10, 8))
+sns.heatmap(pivot_table_interpolated, cmap='hsv', cbar_kws={'label': 'Time at Disk (t)'}, annot=False)
+
+plt.title("Interpolated Heatmap of Time to Disk")
+plt.xlabel("Disk Impact (y-axis intercept)")
+plt.ylabel("r0 Values")
+plt.show()
+
