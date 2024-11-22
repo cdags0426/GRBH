@@ -434,18 +434,20 @@ def fit_polynomial_and_find_intercept(r, phi):
 
 
 
-def Deltax_for_y_desired(r0, inner_edge=5, outer_edge=100, deltaMax=None, deltaMin=None, rMin=.2, rMax=110, tolerance=1e-3, MaxIterations=500):
+def Deltax_for_y_desired(r0, inner_edge=5, outer_edge=100, deltaMax=None, deltaMin=None, rMin=.2, rMax=110, tolerance=2e-2, MaxIterations=500):
         # Function to compute the angle for a given edge (inner or outer)
     def find_required_angle(y_desired, deltaMin, deltaMax):
         for i in range(MaxIterations):
             # Try the midpoint angle in radians
             deltax = (deltaMin + deltaMax) / 2
+            print(np.rad2deg(deltaMin), np.rad2deg(deltaMax))
                
             # Compute the photon trajectory
             myr, myphi, myt = integrateSchGeodesic(r0, deltax, rMin=rMin, rMax=rMax)
                
             # Find the y-axis intercept for this trajectory
             y_axis_intercept = fit_polynomial_and_find_intercept(myr, myphi)
+            print(y_axis_intercept)
             time_at_axis = fit_polynomial_and_find_intercept(myt, myphi)
                                
             # Check if this intercept is close enough to the target
@@ -479,7 +481,7 @@ def Deltax_for_y_desired(r0, inner_edge=5, outer_edge=100, deltaMax=None, deltaM
        
     return angle_inner, angle_outer
    
-
+#Deltax_for_y_desired(r0=20, deltaMax=np.deg2rad(163.0), deltaMin=np.deg2rad(93.0))
 
 def plotRay(r, phi, t):
     x = r * np.cos(phi)
@@ -629,7 +631,7 @@ def SchwarzschildLampPost (z, nrays):
 
 #ret = SchwarzschildLampPost (7, 200)
 
-#r0, delta0 = 5, np.deg2rad(90.0204405784607)
+#r0, delta0 = 20, np.deg2rad(95.615234375)
 #myr, myphi, myt = integrateSchGeodesic (r0, delta0, rMin=.2, rMax=120)
 #plotRay(myr, myphi, myt)
 '''
@@ -666,12 +668,12 @@ print(f"The photon's trajectory intercepts the y-axis at t = {time_intercept}")
 
 
 
-def find_delta_bounds(r0, rMin=.2, rMax=100):
+def find_delta_bounds(r0, rMin=.2, rMax=120):
     deltaMin = 0
     deltaMax = 0
    
    
-    for i in np.arange(180, 45, -1):
+    for i in np.arange(179.0, 45.0, -1):
         delta0max = np.deg2rad(i)
        
         myr, myphi, myt = [], [], []
@@ -688,7 +690,7 @@ def find_delta_bounds(r0, rMin=.2, rMax=100):
             break
            
            
-    for i in np.arange(np.rad2deg(deltaMax), 1, -.5):
+    for i in np.arange(np.rad2deg(deltaMax), 1, -2):
         delta0min = np.deg2rad(i)
        
         myr, myphi, myt = [], [], []
@@ -781,21 +783,23 @@ def Find_Time_at_Disk(r0, rMin=.2, rMax=110, angle_inner=None, angle_outer=None)
 
 '''
 # Call the function and assign the returned values
-deltaMax, deltaMin = find_delta_bounds(5, rMin=.2, rMax=120)
+deltaMax, deltaMin = find_delta_bounds(20, rMin=.2, rMax=120)
+
+angle_inner, angle_outer = Deltax_for_y_desired(r0=20, deltaMax=deltaMax, deltaMin=deltaMin)
+
 
 # Call the function to find both angles for the inner and outer edge
 angle_inner, angle_outer = Deltax_for_y_desired(5, inner_edge=5, outer_edge=100, deltaMax=deltaMax, deltaMin=deltaMin)
 
 # Using those angles as bounds, launch n rays between those two angles onto the accretion disk and get the times to intercept
-time_at_disk, angles, y_ints, allrs, allphis, allts = Find_Time_at_Disk(5, rMin=.2, rMax=120, angle_inner=angle_inner, angle_outer=angle_outer)
+time_at_disk, angles, y_ints, allrs, allphis, allts = Find_Time_at_Disk(20, rMin=.2, rMax=120, angle_inner=angle_inner, angle_outer=angle_outer)
 
-time_at_disk, angles, y_ints, allrs, allphis, allts = Find_Time_at_Disk(5, rMin=.2, rMax=120, angle_inner=angle_inner, angle_outer=angle_outer)
 
 plotRay(allrs, allphis, allts)
-'''
+
 
 #Error delta0 is 90.0204405784607
-
+'''
 
 def t_versus_disk_impact(r0min=3, r0max=20, rMin=.2, rMax=120):
     
@@ -910,7 +914,7 @@ def t_versus_disk_impact_to_local_file(output_file, r0min=3, r0max=20, rMin=0.2,
     print(f"Results saved to {output_file}")
     
     
-t_versus_disk_impact_to_local_file(output_file="3.0-5.0.csv", r0min=3, r0max=5)
+t_versus_disk_impact_to_local_file(output_file="19.1-20.0.csv", r0min=19.1, r0max=20)
 
 
 
