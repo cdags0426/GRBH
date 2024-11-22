@@ -67,6 +67,11 @@ from scipy.interpolate import griddata
 from scipy.interpolate import interp1d
 import seaborn as sns
 import pandas as pd
+import matplotlib.ticker as ticker
+from filelock import FileLock
+import glob
+import os
+
 
 
 DEBUGSW = False #True
@@ -830,8 +835,8 @@ def t_versus_disk_impact(r0min=3, r0max=20, rMin=.2, rMax=120):
 def t_versus_disk_impact(r0min=3, r0max=20, rMin=.2, rMax=120):
     full_ts, full_ints, full_rs = [], [], []
 
-    for i in np.arange(r0min, r0max+1, 1):
-        r0 = i
+    for i in np.arange(r0min, r0max+.1, .1):
+        r0 = round(i, 1)
         # Call the function and assign the returned values
         deltaMax, deltaMin = find_delta_bounds(i, rMin=rMin, rMax=rMax)
        
@@ -846,27 +851,114 @@ def t_versus_disk_impact(r0min=3, r0max=20, rMin=.2, rMax=120):
         full_ints.extend(y_ints)
         full_rs.extend([r0] * len(time_at_disk))  # Repeat r0 for each time_at_disk entry
 
-    return np.array(full_ts), np.array(full_ints), np.array(full_rs)
-
+    return np.array(full_ts), np.array(full_ints), np.array(full_rs), r0min, r0max
+'''
 # Get the full data from function call
-time_at_disk, y_ints, r0_values = t_versus_disk_impact(r0min=3, r0max=14)
+time_at_disk, y_ints, r0_values, r0min, r0max = t_versus_disk_impact(r0min=3, r0max=14)
 
 # Create a DataFrame to handle the data for the heatmap
 data = pd.DataFrame({'r0': r0_values, 'y_ints': y_ints, 'time_at_disk': time_at_disk})
 # Round y_ints to create fewer bins if necessary
 data['y_ints'] = data['y_ints'].round(1)
 # Pivot the data to make it suitable for heatmap plotting
-pivot_table = data.pivot_table(index='r0', columns='y_ints', values='time_at_disk', aggfunc='mean')
+pivot_table = data.pivot_table(index='r0', columns='y_ints', values='time_at_disk', aggfunc='mean', sort=True)
 
 # Interpolate missing values in the pivot table
 pivot_table_interpolated = pivot_table.interpolate(method='linear', axis=1).interpolate(method='linear', axis=0)
 
 # Plot heatmap
-plt.figure(figsize=(10, 8))
-sns.heatmap(pivot_table_interpolated, cmap='hsv', cbar_kws={'label': 'Time at Disk (t)'}, annot=False)
-
-plt.title("Interpolated Heatmap of Time to Disk")
-plt.xlabel("Disk Impact (y-axis intercept)")
-plt.ylabel("r0 Values")
+plt.figure(figsize=(12, 8))
+sns.heatmap(pivot_table_interpolated, cmap='viridis', cbar_kws={'label': 'Time at Disk (RG/c)'}, annot=False)
+plt.title("Interpolated Heatmap of Time to Accretion Disk")
+plt.xlabel("Accretion Disk Impact (Gravitational radii GM/c^2)")
+plt.ylabel("Lamppost Height (Gravitational radii GM/c^2)")
+x_labels = np.arange(5, 101, 5)  # Ticks from 5 to 100 in increments of 5
+plt.xticks(ticks=np.linspace(0, pivot_table.shape[1] - 1, len(x_labels)), labels=x_labels, rotation=45)
+yticks = np.linspace(r0min, r0max, 6)
+plt.yticks(np.linspace(0, len(yticks) - 1, len(yticks)), [f"{tick:.2f}" for tick in yticks])
+plt.ylim(0, len(yticks) - 1)
+plt.gca().set_yticklabels([f"{tick:.2f}" for tick in yticks])
 plt.show()
+'''
 
+
+
+
+def t_versus_disk_impact_to_local_file(output_file, r0min=3, r0max=20, rMin=0.2, rMax=120):
+    """
+    Compute the data for the specified range and save it to a local file.
+    """
+    full_ts, full_ints, full_rs = [], [], []
+
+    for i in np.arange(r0min, r0max + 0.1, 0.1):  # Increment by 0.1 as in your code
+        r0 = round(i, 1)
+        # Compute deltas and angles
+        deltaMax, deltaMin = find_delta_bounds(r0, rMin=rMin, rMax=rMax)
+        angle_inner, angle_outer = Deltax_for_y_desired(r0, inner_edge=5, outer_edge=100, deltaMax=deltaMax, deltaMin=deltaMin)
+        time_at_disk, angles, y_ints, allrs, allphis, allts = Find_Time_at_Disk(r0, rMin=rMin, rMax=rMax, angle_inner=angle_inner, angle_outer=angle_outer)
+
+        # Append data for heatmap creation
+        full_ts.extend(time_at_disk)
+        full_ints.extend(y_ints)
+        full_rs.extend([r0] * len(time_at_disk))  # Repeat r0 for each time_at_disk entry
+
+    # Create a DataFrame for this subrange
+    data = pd.DataFrame({'r0': full_rs, 'y_ints': full_ints, 'time_at_disk': full_ts})
+
+    # Write results to the local file
+    data.to_csv(output_file, index=False)
+    print(f"Results saved to {output_file}")
+    
+    
+t_versus_disk_impact_to_local_file(output_file="3.0-5.0.csv", r0min=3, r0max=5)
+
+
+
+def aggregate_files_and_plot(file_pattern, r0min, r0max):
+    """
+    Aggregate multiple CSV files and generate the heatmap.
+    """
+    # Get a list of files matching the pattern (e.g., "*.csv")
+    file_list = glob.glob(file_pattern)
+    if not file_list:
+        raise FileNotFoundError("No files matching the pattern were found.")
+    
+    # Filter out blank files
+    valid_files = [file for file in file_list if os.path.getsize(file) > 0]
+
+    if not valid_files:
+        raise ValueError("No valid CSV files with data were found.")
+    
+    # Combine all valid files into a single DataFrame
+    combined_data = pd.concat([pd.read_csv(file) for file in valid_files], ignore_index=True)
+
+    # Round y_ints to create fewer bins if necessary
+    combined_data['y_ints'] = combined_data['y_ints'].round(1)
+
+    # Pivot the data for heatmap plotting
+    pivot_table = combined_data.pivot_table(index='r0', columns='y_ints', values='time_at_disk', aggfunc='mean', sort=True)
+
+    # Interpolate missing values in the pivot table
+    pivot_table_interpolated = pivot_table.interpolate(method='linear', axis=1).interpolate(method='linear', axis=0)
+
+    # Plot the heatmap
+    plt.figure(figsize=(12, 8))
+    sns.heatmap(pivot_table_interpolated, cmap='viridis', cbar_kws={'label': 'Time at Disk (RG/c)'}, annot=False)
+    plt.title("Interpolated Heatmap of Time to Accretion Disk")
+    plt.xlabel("Accretion Disk Impact (Gravitational radii GM/c^2)")
+    plt.ylabel("Lamppost Height (Gravitational radii GM/c^2)")
+
+    # Configure ticks
+    x_labels = np.arange(5, 101, 5)  # Ticks from 5 to 100 in increments of 5
+    plt.xticks(ticks=np.linspace(0, pivot_table.shape[1] - 1, len(x_labels)), labels=x_labels, rotation=45)
+
+    yticks = np.linspace(r0min, r0max, 4)  # Create 4 equally spaced y-ticks
+    plt.yticks(ticks=np.linspace(0, pivot_table.shape[0] - 1, len(yticks)), labels=[f"{tick:.1f}" for tick in yticks])
+    plt.ylim(0, pivot_table.shape[0] - 1)
+
+    plt.show()
+
+'''
+# Use the function to aggregate and plot
+aggregate_files_and_plot(file_pattern="*.csv", r0min=3, r0max=20)
+'''
